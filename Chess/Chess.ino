@@ -1,13 +1,14 @@
-char tablero[8][8] = { // [fila][columna]
-  {'.', '.', '.', '.', 'k', '.', '.', '.'},
-  {'.', '.', '.', '.', '.', '.', '.', '.'},
-  {'.', '.', '.', '.', '.', '.', '.', '.'},
-  {'.', '.', '.', '.', '.', '.', '.', '.'},
-  {'.', '.', '.', '.', '.', '.', '.', '.'},
-  {'.', '.', '.', '.', '.', '.', '.', '.'},
-  {'.', '.', 'P', '.', '.', '.', '.', '.'},
-  {'.', 'N', 'B', '.', 'K', 'B', 'N', '.'}
-}; //BIEN
+char tablero[8][8] = {
+    {'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
+    {'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
+    {'.', '.', '.', '.', '.', '.', '.', '.'},
+    {'.', '.', '.', '.', '.', '.', 'Q', '.'},
+    {'.', '.', '.', '.', '.', '.', '.', '.'},
+    {'.', '.', '.', '.', '.', '.', '.', '.'},
+    {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
+    {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}
+};
+
 
 bool turnoBlanco = true;
 
@@ -20,7 +21,7 @@ void loop() {
   if (Serial.available() > 0) {
     String movimiento = Serial.readStringUntil('\n');
     Serial.println("Movimiento recibido: " + movimiento); // Depuración
-    
+
     if (movimiento.length() == 4) {
       int filaOrigen = movimiento.charAt(0) - '1';
       int columnaOrigen = movimiento.charAt(1) - '1';
@@ -30,28 +31,114 @@ void loop() {
       int filaRey, columnaRey;
       buscarCoordenadasReyDelTurno(filaRey, columnaRey); // Buscar las coordenadas del rey del turno
 
-      Serial.println(filaRey + 1);
-      Serial.println(columnaRey + 1);
+      Serial.print("Tu rey está en: (");
+      Serial.print(filaRey + 1);
+      Serial.print(", ");
+      Serial.print(columnaRey + 1);
+      Serial.println(")");
 
       if ((turnoBlanco && isupper(tablero[filaOrigen][columnaOrigen])) || (!turnoBlanco && islower(tablero[filaOrigen][columnaOrigen]))) {
-          if (!enJaque(filaRey, columnaRey)) { // SI NO ESTÁ EN JAQUE ENTONCES
+          if (!enJaque(filaRey, columnaRey)) { // Si no está en jaque, revisar el movimiento
             if (validarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
               moverPieza(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
-              imprimirTablero();
               Serial.println("Movimiento válido.");
+              imprimirTablero();
               turnoBlanco = !turnoBlanco;
+
             } else {
               Serial.println("Movimiento inválido.");
+              imprimirTablero();
             }
           } else {
-            Serial.println("Estas en Jaque, Debes mover al rey a un lugar seguro o protegerlo.");
+            // Está en jaque, verificar si el movimiento del rival lo quita del jaque
+            if (quitaJaque(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
+              moverPieza(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
+              Serial.println("Movimiento válido.");
+              imprimirTablero();
+              turnoBlanco = !turnoBlanco;
+            } else {
+              Serial.println("Estás en jaque, debes mover al rey a un lugar seguro o protegerlo.");
+              imprimirTablero();
+            }
           }
       } else {
         Serial.println((!turnoBlanco ? "Blanco" : "Negro") + String(" no puede mover esa pieza en este turno.")); //LEER BIEN
       }
+
+
     }
   }
 }
+
+
+bool quitaJaque(int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
+    // Guardamos el estado actual de las piezas involucradas
+    char piezaOrigen = tablero[filaOrigen][columnaOrigen];
+    char piezaDestino = tablero[filaDestino][columnaDestino];
+
+    // Realizamos el movimiento temporalmente
+    tablero[filaDestino][columnaDestino] = piezaOrigen;
+    tablero[filaOrigen][columnaOrigen] = '.';
+
+    // Buscamos las coordenadas del rey
+    int filaRey, columnaRey;
+    buscarCoordenadasReyDelTurno(filaRey, columnaRey);
+
+    // Verificamos si el rey sigue en jaque después del movimiento
+    bool sigueEnJaque = enJaque(filaRey, columnaRey);
+
+    // Deshacemos el movimiento temporal
+    tablero[filaOrigen][columnaOrigen] = piezaOrigen;
+    tablero[filaDestino][columnaDestino] = piezaDestino;
+
+    // Retornamos verdadero si el movimiento quita el jaque, falso si no
+    return !sigueEnJaque;
+}
+
+
+bool estaPiezaClavada(int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
+    // Guardamos el estado actual de las piezas involucradas
+    char piezaOrigen = tablero[filaOrigen][columnaOrigen];
+    char piezaDestino = tablero[filaDestino][columnaDestino];
+
+    // Realizamos el movimiento temporalmente
+    tablero[filaDestino][columnaDestino] = piezaOrigen;
+    tablero[filaOrigen][columnaOrigen] = '.';
+
+    // Buscamos las coordenadas del rey del turno
+    int filaRey, columnaRey;
+    buscarCoordenadasReyDelTurno(filaRey, columnaRey);
+
+    // Verificamos si mover la pieza expone al rey a un jaque
+    bool exponeAlReyAJaque = enJaque(filaRey, columnaRey);
+
+    // Deshacemos el movimiento temporal
+    tablero[filaOrigen][columnaOrigen] = piezaOrigen;
+    tablero[filaDestino][columnaDestino] = piezaDestino;
+
+    // Si mover la pieza expone al rey a un jaque, entonces la pieza está clavada
+    return exponeAlReyAJaque;
+}
+
+bool enJaque(int filaRey, int columnaRey) {
+    char rey = (turnoBlanco) ? 'K' : 'k';
+
+    // Recorremos el tablero para encontrar las piezas que pueden atacar al rey
+    for (int fila = 0; fila < 8; fila++) {
+        for (int columna = 0; columna < 8; columna++) {
+            char pieza = tablero[fila][columna];
+            if ((turnoBlanco && islower(pieza)) || (!turnoBlanco && isupper(pieza))) {
+                // Si la pieza enemiga puede atacar al rey, retorna verdadero
+                if (validarMovimiento(fila, columna, filaRey, columnaRey)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false; // El rey no está en jaque
+}
+
+
 
 void buscarCoordenadasReyDelTurno(int& filaRey, int& columnaRey) {
   char reyBuscado = (turnoBlanco) ? 'K' : 'k'; // Rey blanco si es turno de los blancos, rey negro si es turno de los negros
@@ -66,33 +153,6 @@ void buscarCoordenadasReyDelTurno(int& filaRey, int& columnaRey) {
       }
     }
   }
-}
-
-
-bool enJaque(int filaRey, int columnaRey) {
-  char rey = (turnoBlanco) ? 'K' : 'k';
-
-  Serial.println(rey);
-
-  // Recorremos el tablero para encontrar las piezas que pueden atacar al rey
-  for (int fila = 0; fila < 8; fila++) {
-    for (int columna = 0; columna < 8; columna++) {
-      char pieza = tablero[fila][columna];
-      Serial.println(pieza);
-      Serial.println(fila);
-      Serial.println(columna);
-      Serial.println();
-
-      if ((turnoBlanco && islower(pieza)) || (!turnoBlanco && isupper(pieza))) {
-        // Si la pieza enemiga puede atacar al rey, retorna verdadero
-        if (validarMovimiento(fila, columna, filaRey, columnaRey)) {
-          Serial.println("¡El rey está en jaque!");
-          return true;
-        }
-      }
-    }
-  }
-  return false;
 }
 
 void imprimirTablero() {
@@ -122,6 +182,11 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
 
     // Verificar si la casilla de destino contiene una pieza del mismo color
     if ((islower(pieza) && islower(destinoPieza)) || (isupper(pieza) && isupper(destinoPieza))) {
+        return false;
+    }
+
+    if (estaPiezaClavada(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
+      Serial.print("La pieza esta clavada");
         return false;
     }
 
@@ -156,7 +221,6 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
             x += stepX;
             y += stepY;
         }
-
         return true; // Movimiento válido
     }
 
@@ -191,7 +255,7 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
     if (pieza == 'Q' || pieza == 'q') {
         int dx = abs(columnaDestino - columnaOrigen);
         int dy = abs(filaDestino - filaOrigen);
-
+        
         // Verificar si el movimiento es horizontal, vertical o diagonal
         if (!((dx != 0 && dy != 0) || (dx == 0 && dy != 0) || (dx != 0 && dy == 0))) {
             return false; // La reina solo puede moverse en línea recta o en diagonal
@@ -248,7 +312,7 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
             return true;
         }
         // Si llega al final del tablero
-        if (filaDestino == 0) {
+        if (filaDestino == 0 && destinoPieza != 'k'){
             return true;
         }
     }
@@ -279,16 +343,13 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
             return true;
         }
         // Si llega al final del tablero
-        if (filaDestino == 7) {
+        if (filaDestino == 7 && destinoPieza != 'K') {
             return true;
         }
     }
-    return false; // Si no cumple ninguna condición, el movimiento es inválido
-}
+    
+        return false;
 
-void coronarPeon(int destinoFila, int destinoColumna, char color) {
-    char nuevaPieza = seleccionarPiezaCoronacion(color);
-    tablero[destinoFila][destinoColumna] = nuevaPieza;
 }
 
 void moverPieza(int origenFila, int origenColumna, int destinoFila, int destinoColumna) {
@@ -299,6 +360,7 @@ void moverPieza(int origenFila, int origenColumna, int destinoFila, int destinoC
     if ((pieza == 'P' && destinoFila == 0) || (pieza == 'p' && destinoFila == 7)) {
         char color = (pieza == 'P') ? 'w' : 'b'; // Determinar el color del peón
         coronarPeon(destinoFila, destinoColumna, color);
+        tablero[origenFila][origenColumna] = '.';
     } else if (pieza == 'N' || pieza == 'n') {
         // Si es un caballo, solo mover la pieza
         tablero[destinoFila][destinoColumna] = pieza;
@@ -324,8 +386,6 @@ void moverPieza(int origenFila, int origenColumna, int destinoFila, int destinoC
         tablero[origenFila][origenColumna] = '.';
     }
 }
-
-
 
 char seleccionarPiezaCoronacion(char color) {
   Serial.println("Selecciona la pieza en la que deseas coronar el peón:");
@@ -359,6 +419,12 @@ char seleccionarPiezaCoronacion(char color) {
     }
   }
 }
+
+void coronarPeon(int destinoFila, int destinoColumna, char color) {
+    char nuevaPieza = seleccionarPiezaCoronacion(color);
+    tablero[destinoFila][destinoColumna] = nuevaPieza;
+}
+
 
 
 
