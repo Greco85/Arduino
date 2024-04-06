@@ -1,91 +1,189 @@
 
-char tablero[8][8] = {
-    {'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
-    {'p', 'p', 'p', 'p', '.', 'p', 'p', 'p'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'.', '.', '.', '.', '.', 'Q', '.', '.'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
-    {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}
-};
+//DEMASIADO EMOCIONANTE TERMINAR ESTE MUGRERO, CREO Q FUE DEMASIADO RARO Y ME ROMPÍ LA CABEZA COMO MUCHAS VECES
+// Igual falta pulirlo mucho para que quede mejor y más optimizado, pero ya quedó la teoría solo falta pasarlo a la pantalla je
 
+#include <Arduino.h>
+
+  char tablero[8][8] = {
+    {'.', '.', 'k', 'r', '.', 'b', 'r', '.'},
+    {'p', 'p', 'p', '.', 'q', 'p', '.', '.'},
+    {'.', '.', '.', '.', '.', '.', '.', '.'},
+    {'.', '.', '.', '.', '.', '.', '.', 'p'},
+    {'.', '.', 'P', 'n', '.', '.', 'p', 'P'},
+    {'P', '.', 'Q', '.', 'B', '.', 'P', '.'},
+    {'.', 'P', '.', 'N', '.', 'P', '.', '.'},
+    {'R', '.', '.', '.', 'K', '.', '.', 'R'}
+  };
+
+bool juegoGanado = false;
 
 bool turnoBlanco = true;
 int filadelReyGlobal;
 int columnadelReyGlobal;
-
+bool reyBlancoMovido = false;
+bool torreBlancaDerechaMovida = false;
+bool torreBlancaIzquierdaMovida = false;
+bool reyNegroMovido = false;
+bool torreNegraDerechaMovida = false;
+bool torreNegraIzquierdaMovida = false;
+unsigned long tiempoBlanco = 600000 ; // EL TIEMPO EN MILISEGUNDOS
+unsigned long tiempoNegro = 600000 ; 
+unsigned long tiempoAnterior = 0;
 
 void setup() {
   Serial.begin(9600);
   imprimirTablero();
+  tiempoAnterior = millis();
 }
 
 void loop() {
-  if (Serial.available() > 0) {
-    String movimiento = Serial.readStringUntil('\n');
-    Serial.println("Movimiento recibido: " + movimiento); // Depuración
 
-    if (movimiento.length() == 4) {
-      int filaOrigen = movimiento.charAt(0) - '1';
-      int columnaOrigen = movimiento.charAt(1) - '1';
-      int filaDestino = movimiento.charAt(2) - '1';
-      int columnaDestino = movimiento.charAt(3) - '1';
+      if (juegoGanado) {
+      Serial.println("El juego ha terminado. ¿Desea reiniciar el sistema para jugar nuevamente? (Sí = 'S' o 's' /No = otro)");
+      while (Serial.available() == 0) {}
+      char respuesta = Serial.read();
+      if (respuesta == 'S' || respuesta == 's') { 
+          juegoGanado = false;
+          turnoBlanco = true;
+          reyBlancoMovido = false;
+          torreBlancaDerechaMovida = false;
+          torreBlancaIzquierdaMovida = false;
+          reyNegroMovido = false;
+          torreNegraDerechaMovida = false;
+          torreNegraIzquierdaMovida = false;
+          tiempoBlanco = 600000;
+          tiempoNegro = 600000;
+          tiempoAnterior = 0;
 
-      buscarCoordenadasReyDelTurno();
+          char nuevoTablero[8][8] = {
+              {'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
+              {'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
+              {'.', '.', '.', '.', '.', '.', '.', '.'},
+              {'.', '.', '.', '.', '.', '.', '.', '.'},
+              {'.', '.', '.', '.', '.', '.', '.', '.'},
+              {'.', '.', '.', '.', '.', '.', '.', '.'},
+              {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
+              {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}
+          };
 
-      Serial.print("Tu rey está en: (");
-      Serial.print(filadelReyGlobal + 1);
-      Serial.print(", ");
-      Serial.print(columnadelReyGlobal + 1);
-      Serial.println(")");
+          memcpy(tablero, nuevoTablero, sizeof(tablero));
 
-      if ((turnoBlanco && isupper(tablero[filaOrigen][columnaOrigen])) || (!turnoBlanco && islower(tablero[filaOrigen][columnaOrigen]))) {
-          if (!enJaque()) { // Si no está en jaque, revisar el movimiento
-            if (validarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
-              moverPieza(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
-              Serial.println("Movimiento válido.");
-              imprimirTablero();
-              turnoBlanco = !turnoBlanco;
-            } else {
-              Serial.println("Movimiento inválido.");
-              imprimirTablero();
-            }
-          } else {
-            if (quitaJaque(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
-              Serial.println("CUARTO IF");
-              moverPieza(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
-              Serial.println("Movimiento válido.");
-              imprimirTablero();
-              turnoBlanco = !turnoBlanco;
-            } else {
-              Serial.println("Estás en jaque, debes mover al rey a un lugar seguro o protegerlo.");
-              imprimirTablero();
-            } 
-          }
+
+          Serial.println("Reiniciando el juego...");
+          imprimirTablero();
+          return;
       } else {
-        Serial.println((!turnoBlanco ? "Blanco" : "Negro") + String(" no puede mover esa pieza en este turno.")); //LEER BIEN
+          Serial.println("El sistema no ha sido reiniciado. Hasta luego.");
+          while (true) {}
       }
-
-  
-    }
   }
+
+    //Muestra este mensaje cuando se le acaba el tiempo a alguno de los jugadores
+    if (tiempoBlanco <= 0 || tiempoNegro <= 0) {
+        Serial.println("Tiempo agotado para el jugador " + String((tiempoBlanco <= 0 ? "Blanco" : "Negro")));
+        imprimirTablero();
+          juegoGanado = true;
+    }
+
+    // Mostrar el tiempo restante del jugador actual
+    mostrarTiempo(turnoBlanco ? tiempoBlanco : tiempoNegro);
+
+    // Actualiza el tiempo restante del jugador actual
+    unsigned long tiempoActual = millis();
+    if (tiempoActual - tiempoAnterior >= 1000) { // Restar un segundo cada 1000 milisegundos (1 segundo)
+        if (turnoBlanco) {
+            tiempoBlanco -= 1000;
+        } else {
+            tiempoNegro -= 1000;
+        }
+        tiempoAnterior = tiempoActual;
+    }
+
+    //CUANDO PONER EL MOVIMIENTO QUE VAS A REALIZAR
+
+    if (Serial.available() > 0) {
+        String movimiento = Serial.readStringUntil('\n');
+        Serial.println("Movimiento recibido: " + movimiento);
+
+        if (movimiento.length() == 4) {
+            int filaOrigen = movimiento.charAt(0) - '1';
+            int columnaOrigen = movimiento.charAt(1) - '1';
+            int filaDestino = movimiento.charAt(2) - '1';
+            int columnaDestino = movimiento.charAt(3) - '1';
+
+            tiempoActual = millis();
+            if (tiempoActual - tiempoAnterior >= 1000) { // Restar un segundo cada 1000 milisegundos (1 segundo)
+                if (turnoBlanco) {
+                    tiempoBlanco -= 1000;
+                } else {
+                    tiempoNegro -= 1000;
+                }
+                tiempoAnterior = tiempoActual;
+            }
+
+            if ((turnoBlanco && isupper(tablero[filaOrigen][columnaOrigen])) || (!turnoBlanco && islower(tablero[filaOrigen][columnaOrigen]))) {
+                if (!enJaque()) {
+                    if (!verificarEnroque(tablero[filaOrigen][columnaOrigen], filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
+                        if (validarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
+                            moverPieza(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
+                            Serial.println("Movimiento válido.");
+                            imprimirTablero();
+                            turnoBlanco = !turnoBlanco;
+                        } else {
+                          Serial.println("Movimiento inválido.");
+                          imprimirTablero();
+                        }
+                    } else {
+                        Serial.println("Enroque realizado.");
+                        imprimirTablero();
+                        turnoBlanco = !turnoBlanco;
+                    }
+                } else { //si estas en jaque 
+                    if (quitaJaque(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
+                        if (validarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
+                        moverPieza(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
+                        Serial.println("Movimiento válido. Quita del Jaque");
+                        imprimirTablero();
+                        turnoBlanco = !turnoBlanco;
+                        } else {
+                          Serial.println("Movimiento inválido.");
+                          Serial.println("Estás en jaque, debes mover al rey a un lugar seguro o protegerlo.");
+                          imprimirTablero();
+                        }
+                    }
+                }
+            } else {
+            Serial.println((!turnoBlanco ? "Blanco" : "Negro") + String(" no puede mover esa pieza en este turno O pusiste mal las coordenadas.")); //O OTRAS COSAS
+        }
+          if (esJaqueMate()) {
+              Serial.println("Jaque mate. El jugador " + String((turnoBlanco ? "Negro" : "Blanco")) + " ha ganado la partida");
+              imprimirTablero();
+              juegoGanado = true;
+              return;  
+          }
+        }  
+    }
 }
 
+void mostrarTiempo(unsigned long tiempoRestante) {
+    String jugador = turnoBlanco ? "Blanco" : "Negro";
+    unsigned long minutos = tiempoRestante / 60000;
+    unsigned long segundos = (tiempoRestante % 60000) / 1000;
+    Serial.print("Tiempo restante del jugador ");
+    Serial.print(jugador);
+    Serial.print(": ");
+    Serial.print(minutos);
+    Serial.print(" min ");
+    Serial.print(segundos);
+    Serial.println(" seg");
+    delay(1000);
+}
 
 bool quitaJaque(int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
+   
     // Guardamos el estado actual de las piezas involucradas
     char piezaOrigen = tablero[filaOrigen][columnaOrigen];
     char piezaDestino = tablero[filaDestino][columnaDestino];
-
-    imprimirTablero();
-
-      Serial.print("Funcion QuitaJaque");
-     Serial.print("Pieza origen: ");
-      Serial.print(piezaOrigen);
-      Serial.print(", ");
-      Serial.print("Pieza Destino: ");
-      Serial.println(piezaDestino);
 
     // Realizamos el movimiento temporalmente
     tablero[filaDestino][columnaDestino] = piezaOrigen;
@@ -95,10 +193,7 @@ bool quitaJaque(int filaOrigen, int columnaOrigen, int filaDestino, int columnaD
     buscarCoordenadasReyDelTurno();
     int filaRey = filadelReyGlobal, columnaRey = columnadelReyGlobal;
 
-
     bool sigueEnJaque = verificarEnjaque(filaRey,columnaRey);
-
-    imprimirTablero();
 
     // Deshacemos el movimiento temporal
     tablero[filaOrigen][columnaOrigen] = piezaOrigen;
@@ -110,6 +205,7 @@ bool quitaJaque(int filaOrigen, int columnaOrigen, int filaDestino, int columnaD
 
 
 bool estaPiezaClavada(int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
+    
     // Guardamos el estado actual de las piezas involucradas
     char piezaOrigen = tablero[filaOrigen][columnaOrigen];
     char piezaDestino = tablero[filaDestino][columnaDestino];
@@ -132,10 +228,56 @@ bool estaPiezaClavada(int filaOrigen, int columnaOrigen, int filaDestino, int co
     return exponeAlReyAJaque;
 }
 
+bool esJaqueMate() {
+  
+      buscarCoordenadasReyDelTurno();
+
+    // Verificar si el rey está en jaque
+    if (!enJaque()) {
+        return false; 
+    }
+
+    // Realizar movimientos temporales para verificar si ninguna pieza puede salvar al rey
+    for (int fila = 0; fila < 8; fila++) {
+        for (int columna = 0; columna < 8; columna++) {
+            char pieza = tablero[fila][columna];
+            if ((turnoBlanco && isupper(pieza)) || (!turnoBlanco && islower(pieza))) {
+                for (int destinoFila = 0; destinoFila < 8; destinoFila++) {
+                    for (int destinoColumna = 0; destinoColumna < 8; destinoColumna++) {
+                        if (validarMovimiento(fila, columna, destinoFila, destinoColumna)) {
+                            char piezaOrigen = tablero[fila][columna];
+                            char piezaDestino = tablero[destinoFila][destinoColumna];
+
+                            // Realizar el movimiento temporalmente
+                            tablero[destinoFila][destinoColumna] = piezaOrigen;
+                            tablero[fila][columna] = '.';
+
+                            // Verificar si el rey sigue en jaque mate después del movimiento
+                            if (!enJaque()) {
+                                    // Deshacer el movimiento temporal
+                                    tablero[fila][columna] = piezaOrigen;
+                                    tablero[destinoFila][destinoColumna] = piezaDestino;
+                                    return false; // El rey puede ser salvado
+                            }
+
+                            // Deshacer el movimiento temporal
+                            tablero[fila][columna] = piezaOrigen;
+                            tablero[destinoFila][destinoColumna] = piezaDestino;
+                        } else {
+                          //EN ESTA FUNCIÓN (O OTRA) PUEDE Q HAYA UN PROBLEMA AL MOVER TODAS LAS PIEZAS PUEDE QUE MUEVA EL REY Y ESTE SE CAMBIA A TRUE Y NO SE PODRÍA ENROCAR
+                          // MAÑANA LO ARREGLO PORQ  HOY TUVE SUFICIENTE SOLO TENGO ESE ERROR Y QUIZÁS UNA MALA ORGANIZACIÓN EN EL LOOP 
+                          // porque hay veces donde no dice si es movimiento válido o no.
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
 bool enJaque() {
-  Serial.print("El turno es de: ");
-  Serial.println(turnoBlanco);
-  Serial.println();
 
   // Recorremos el tablero para encontrar las piezas que pueden atacar al rey
   for (int fila = 0; fila < 8; fila++) {
@@ -145,26 +287,9 @@ bool enJaque() {
 
           if ((turnoBlanco && islower(pieza)) || (!turnoBlanco && isupper(pieza))) {
           if (pieza == '.') {
-              continue; // Saltar a la siguiente iteración del bucle
+              continue; 
           }
-
-          Serial.print("LA PIEZA ES: ");
-          Serial.print(pieza);
-          Serial.print("(");
-          Serial.print(fila);
-          Serial.print(",");
-          Serial.print(columna);
-          Serial.println(")");
-          
-
           char rey = (turnoBlanco) ? 'K' : 'k';
-          Serial.print("El rey de este turno está en: ");
-          Serial.print("(");
-          Serial.print(filadelReyGlobal);
-          Serial.print(",");
-          Serial.print(columnadelReyGlobal);
-          Serial.println(")");
-          Serial.println("");
 
               if (validarMovimiento(fila, columna, filadelReyGlobal, columnadelReyGlobal)) {
                   return true;
@@ -179,12 +304,10 @@ bool enJaque() {
 //solo para darle valores pero lo puedo juntar con el de arriba solo q luego veo
 bool verificarEnjaque(int filaRey, int columnaRey) {
     char rey = (turnoBlanco) ? 'K' : 'k';
-
     for (int fila = 0; fila < 8; fila++) {
         for (int columna = 0; columna < 8; columna++) {
             char pieza = tablero[fila][columna];
             if ((turnoBlanco && islower(pieza)) || (!turnoBlanco && isupper(pieza))) {
-                // Si la pieza enemiga puede atacar al rey, retorna verdadero
                 if (validarMovimiento(fila, columna, filaRey, columnaRey)) {
                     return true;
                 }
@@ -194,33 +317,19 @@ bool verificarEnjaque(int filaRey, int columnaRey) {
     return false; 
 }
 
-
-
 void buscarCoordenadasReyDelTurno() {
     char reyBuscado = (turnoBlanco) ? 'K' : 'k'; // Rey blanco si es turno de los blancos, rey negro si es turno de los negros
-    Serial.print(reyBuscado);
-    Serial.print(reyBuscado);
-    Serial.print("ME METIIIIIIIIII");
-    Serial.print("ME METIIIIIIIIII");
-    Serial.print("ME METIIIIIIIIII");
-    Serial.print("ME METIIIIIIIIII");
-    Serial.print("ME METIIIIIIIIII");
-    Serial.print("ME METIIIIIIIIII");
-    Serial.print("ME METIIIIIIIIII");
-
-    imprimirTablero();
     // Recorrer el tablero para encontrar las coordenadas del rey
     for (int fila = 0; fila < 8; ++fila) {
         for (int columna = 0; columna < 8; ++columna) {
             if (tablero[fila][columna] == reyBuscado) {
                 filadelReyGlobal = fila;
                 columnadelReyGlobal = columna;
-                return; // Se encontraron las coordenadas del rey, salir de la función
+                return;
             }
         }
     }
 }
-
 
 void imprimirTablero() {
   Serial.write(27);
@@ -238,47 +347,147 @@ void imprimirTablero() {
   Serial.println("\n");
 }
 
-bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
+void enrocarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
 
-    Serial.println("Entramos a validar Movimiento");
-    Serial.println("");
+    // Realizar el enroque corto del rey blanco
+    if (filaOrigen == 7 && columnaOrigen == 4 && filaDestino == 7 && columnaDestino == 6) {
+        tablero[7][5] = 'R'; 
+        tablero[7][6] = 'K'; 
+        tablero[7][4] = '.'; 
+        tablero[7][7] = '.'; 
+        reyBlancoMovido = true; 
+        torreBlancaDerechaMovida = true;
+    }
+
+    // Realizar el enroque largo del rey blanco
+    if (filaOrigen == 7 && columnaOrigen == 4 && filaDestino == 7 && columnaDestino == 2) {
+        tablero[7][3] = 'R'; 
+        tablero[7][2] = 'K'; 
+        tablero[7][4] = '.'; 
+        tablero[7][0] = '.'; 
+        reyBlancoMovido = true; 
+        torreBlancaIzquierdaMovida = true; 
+    }
+
+    // Realizar el enroque corto del rey negro
+    if (filaOrigen == 0 && columnaOrigen == 4 && filaDestino == 0 && columnaDestino == 6) {
+        tablero[0][5] = 'r'; 
+        tablero[0][6] = 'k'; 
+        tablero[0][4] = '.'; 
+        tablero[0][7] = '.'; 
+        reyNegroMovido = true; 
+        torreNegraDerechaMovida = true; 
+    }
+
+    // Realizar el enroque largo del rey negro
+    if (filaOrigen == 0 && columnaOrigen == 4 && filaDestino == 0 && columnaDestino == 2) {
+        tablero[0][3] = 'r'; 
+        tablero[0][2] = 'k'; 
+        tablero[0][4] = '.'; 
+        tablero[0][0] = '.'; 
+        reyNegroMovido = true; 
+        torreNegraIzquierdaMovida = true;
+    }
+
+    imprimirTablero();
+
+}
+
+
+bool verificarEnroque(char pieza, int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
+
+    // Verificar si el rey está en jaque
+    if (enJaque()) {
+        return false; 
+    }
+    
+    if (pieza == 'k') {
+        int dx = abs(columnaDestino - columnaOrigen);
+        int dy = abs(filaDestino - filaOrigen);
+
+        if (dx == 2 && dy == 0) { 
+            // Verificar condiciones específicas para el enroque del rey negro
+            if (columnaOrigen == 4 && filaOrigen == 0) {
+                if (columnaDestino == 6 && !reyNegroMovido && !torreNegraDerechaMovida) {
+                    if (!casillaBajoAtaque(0, 5) && !casillaBajoAtaque(0, 6) && tablero[0][5] == '.' && tablero[0][6] == '.') {
+                        enrocarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
+                        return true;
+                    }
+                }
+                else if (columnaDestino == 2 && !reyNegroMovido && !torreNegraIzquierdaMovida) {  
+                    if (!casillaBajoAtaque(0, 1) && !casillaBajoAtaque(0, 2) && !casillaBajoAtaque(0, 3) && tablero[0][1] == '.' && tablero[0][2] == '.' && tablero[0][3] == '.') {
+                        enrocarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    else if (pieza == 'K') {
+        int dx = abs(columnaDestino - columnaOrigen);
+        int dy = abs(filaDestino - filaOrigen);
+
+        if (dx == 2 && dy == 0) { 
+            // Verificar condiciones específicas para el enroque del rey blanco
+            if (columnaOrigen == 4 && filaOrigen == 7) {
+                if (columnaDestino == 6 && !reyBlancoMovido && !torreBlancaDerechaMovida) {
+                    if (!casillaBajoAtaque(7, 5) && tablero[7][5] == '.' && tablero[7][6] == '.') {
+                        enrocarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
+                        return true;
+                    }
+                }
+                else if (columnaDestino == 2 && !reyBlancoMovido && !torreBlancaIzquierdaMovida) {
+                    if (!casillaBajoAtaque(7, 1) && !casillaBajoAtaque(7, 2) && !casillaBajoAtaque(7, 3) && tablero[7][1] == '.' && tablero[7][2] == '.' && tablero[7][3] == '.') {
+                        enrocarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    return false; 
+}
+
+bool casillaBajoAtaque(int fila, int columna) {
+
+    for (int filaTablero = 0; filaTablero < 8; filaTablero++) {
+        for (int columnaTablero = 0; columnaTablero < 8; columnaTablero++) {
+            char pieza = tablero[filaTablero][columnaTablero];
+            
+            if (pieza != '.') { 
+                bool esEnemigo = (turnoBlanco && islower(pieza)) || (!turnoBlanco && isupper(pieza));
+                if (esEnemigo) {
+                    if (validarMovimiento(filaTablero, columnaTablero, fila, columna)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
 
     char pieza = tablero[filaOrigen][columnaOrigen];
     char destinoPieza = tablero[filaDestino][columnaDestino];
 
-    Serial.print(pieza);
-    Serial.print(" En las coordenadas (");
-    Serial.print(filaOrigen);
-    Serial.print(",");
-    Serial.print(columnaOrigen);
-    Serial.print(")");
-
-    Serial.print(destinoPieza);
-    Serial.print(" En las coordenadas (");
-    Serial.print(filaDestino);
-    Serial.print(",");
-    Serial.print(columnaDestino);
-    Serial.print(")");
-    Serial.println();
-
     // Verificar si el movimiento es dentro del tablero
     if (columnaDestino < 0 || columnaDestino >= 8 || filaDestino < 0 || filaDestino >= 8) {
-      Serial.print("El movimiento es fuera del tablero");
         return false;
     }
 
     // Verificar si la casilla de destino contiene una pieza del mismo color
     if ((islower(pieza) && islower(destinoPieza)) || (isupper(pieza) && isupper(destinoPieza))) {
-      Serial.print("Tiene una pieza del mismo color");
         return false;
     }
 
-  //CAMBIE ESTE
+    //Verifica si la pieza que se quiere mover está clavada
     if ((!turnoBlanco && islower(pieza)) || (turnoBlanco && isupper(pieza))) {
         if (estaPiezaClavada(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
-        Serial.print("La pieza esta clavada");
         return false;
-    }
+      }
     }
 
     // Si es un caballo
@@ -320,12 +529,8 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
         int dx = columnaDestino - columnaOrigen;
         int dy = filaDestino - filaOrigen;
 
-        Serial.println(dx);
-        Serial.println(dy);
-
         // Verificar si el movimiento es horizontal o vertical
         if (dx != 0 && dy != 0) {
-          Serial.println("FALSO");
             return false; // La torre solo puede moverse en línea recta
         }
 
@@ -342,6 +547,23 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
             }
             x += stepX;
             y += stepY;
+        }
+
+        // Si estamos moviendo una torre blanca, actualizamos las variables correspondientes
+        if (pieza == 'R') {
+            if (filaOrigen == 7 && columnaOrigen == 0) {
+                torreBlancaIzquierdaMovida = true;
+            } else if (filaOrigen == 7 && columnaOrigen == 7) {
+                torreBlancaDerechaMovida = true;
+            }
+        }
+        // Si estamos moviendo una torre negra, actualizamos las variables correspondientes
+        else if (pieza == 'r') {
+            if (filaOrigen == 0 && columnaOrigen == 0) {
+                torreNegraIzquierdaMovida = true;
+            } else if (filaOrigen == 0 && columnaOrigen == 7) {
+                torreNegraDerechaMovida = true;
+            }
         }
 
         return true; // El movimiento es válido
@@ -375,12 +597,25 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
         return true; // El movimiento es válido
     }
 
-    // Si es un rey
-    if (pieza == 'K' || pieza == 'k') {
-        int dx = abs(columnaDestino - columnaOrigen);
-        int dy = abs(filaDestino - filaOrigen);
-        return (dx <= 1 && dy <= 1);
-    }
+      // Si es un rey
+      if (pieza == 'K' || pieza == 'k') {
+          int dx = abs(columnaDestino - columnaOrigen);
+          int dy = abs(filaDestino - filaOrigen);
+
+          if (dx <= 1 && dy <= 1) {
+              if (pieza == 'K') {
+                Serial.println("rey blanco movido");
+                  reyBlancoMovido = true;
+              }
+              else if (pieza == 'k') {
+                Serial.println("rey negro movido");
+                  reyNegroMovido = true;
+              }
+              return true;
+          }
+
+          return false;
+      }
 
     // Si es un peón blanco
     if (pieza == 'P') {
@@ -408,8 +643,11 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
             return true;
         }
         // Si llega al final del tablero
-        if (filaDestino == 0 && destinoPieza != 'k'){
+        if (filaDestino == 0 && destinoPieza != 'k'){  //MUCHO MIEDO A ESTO PERO CREO QUE FUNCIONA ASÍ QUE LO DEJARE ASÍ
+          if ((filaOrigen - filaDestino == 1 && columnaOrigen == columnaDestino && tablero[filaDestino][columnaDestino] == '.') || 
+              (abs(columnaOrigen - columnaDestino) == 1 && filaOrigen - filaDestino == 1 && tablero[filaDestino][columnaDestino] != '.')) {
             return true;
+           }
         }
     }
 
@@ -439,14 +677,15 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
             return true;
         }
         // Si llega al final del tablero
-        if (filaDestino == 7 && destinoPieza != 'K') {
-            return true;
-        }
+        if (filaDestino == 7 && destinoPieza != 'K') { //MUCHO MIEDO A ESTO PERO CREO QUE FUNCIONA ASÍ QUE LO DEJARE ASÍ
+          if ((filaOrigen - filaDestino == 1 && columnaOrigen == columnaDestino && tablero[filaDestino][columnaDestino] == '.') || 
+              (abs(columnaOrigen - columnaDestino) == 1 && filaOrigen - filaDestino == 1 && tablero[filaDestino][columnaDestino] != '.')) {
+              return true;
+            }
+      }
     }
-    
         return false;
 }
-
 
 void moverPieza(int origenFila, int origenColumna, int destinoFila, int destinoColumna) {
 
