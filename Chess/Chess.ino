@@ -1,6 +1,6 @@
 
 //DEMASIADO EMOCIONANTE TERMINAR ESTE MUGRERO, CREO Q FUE DEMASIADO RARO Y ME ROMPÍ LA CABEZA COMO MUCHAS VECES
-// Igual falta pulirlo mucho para que quede mejor y más optimizado, pero ya quedó la teoría solo falta pasarlo a la pantalla je
+// Igual falta pulirlo mucho para que quede mejor y más optimizado.
 
 //IGUAL FALTA PONER SI ES TABLAS, O SIMPLEMENTE NO HAY MATERIAL PARA CONTINUAR PERO ESO LUEGO LO POONGO
 
@@ -18,8 +18,7 @@ int columnamovimiento;
 TSPoint tp;  
 
 bool solopaelbugcuriosodelenroque = false;
-
-
+bool reiniciar = false;
 
 // Definir las dimensiones del tablero de ajedrez
 #define CHESSBOARD_SIZE 8
@@ -42,17 +41,20 @@ TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 #define BLACK 0x0000
 #define WHITE 0xFFFF
 #define BLUE 0x001F 
+#define GREEN 0x07E0
+#define RED 0xF800 
+
 
 char tablero[8][8] = {
-                    {'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
-                    {'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
-                    {'.', '.', '.', '.', '.', '.', '.', '.'},
-                    {'.', '.', '.', '.', '.', '.', '.', '.'},
-                    {'.', '.', '.', '.', '.', '.', '.', '.'},
-                    {'.', '.', '.', '.', '.', '.', '.', '.'},
-                    {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
-                    {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}
-                };
+        {'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
+        {'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
+        {'.', '.', '.', '.', '.', '.', '.', '.'},
+        {'.', '.', '.', '.', '.', '.', '.', '.'},
+        {'.', '.', '.', '.', '.', '.', '.', '.'},
+        {'.', '.', '.', '.', '.', '.', '.', '.'},
+        {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
+        {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}
+    };
 
 
 bool juegoGanado = false;
@@ -65,9 +67,11 @@ bool torreBlancaIzquierdaMovida = false;
 bool reyNegroMovido = false;
 bool torreNegraDerechaMovida = false;
 bool torreNegraIzquierdaMovida = false;
-unsigned long tiempoBlanco = 600000 ; // EL TIEMPO EN MILISEGUNDOS
-unsigned long tiempoNegro = 600000 ; 
+unsigned long tiempoBlanco = 600000*2 ; // EL TIEMPO EN MILISEGUNDOS
+unsigned long tiempoNegro = 600000*2 ; 
 unsigned long tiempoAnterior = 0;
+
+char piezaSeleccionada = ' '; 
 
 
 // las piezas
@@ -265,10 +269,10 @@ const unsigned char reycontorno[] PROGMEM = {
 
 
 void setup() {
-    uint16_t tmp;
+    // uint16_t tmp;
     Serial.begin(9600);
     drawChessboard(); // ESE PARA VERLO EN LA PANTALLA
-    imprimirTablero(); //ESE ES PARA VERLO EN EL SERIAL
+    // imprimirTablero(); //ESE ES PARA VERLO EN EL SERIAL
     tiempoAnterior = millis();
 }
 
@@ -276,51 +280,20 @@ void setup() {
 void loop() {
 
     if (juegoGanado) {
-            Serial.println("El juego ha terminado. ¿Desea reiniciar el sistema para jugar nuevamente? (Sí = 'S' o 's' /No = otro)");
-            while (Serial.available() == 0) {}
-            char respuesta = Serial.read();
-            if (respuesta == 'S' || respuesta == 's') { 
-                juegoGanado = false;
-                turnoBlanco = true;
-                reyBlancoMovido = false;
-                torreBlancaDerechaMovida = false;
-                torreBlancaIzquierdaMovida = false;
-                reyNegroMovido = false;
-                torreNegraDerechaMovida = false;
-                torreNegraIzquierdaMovida = false;
-                tiempoBlanco = 600000;
-                tiempoNegro = 600000;
-                tiempoAnterior = 0;
-
-                char nuevoTablero[8][8] = {
-                    {'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
-                    {'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
-                    {'.', '.', '.', '.', '.', '.', '.', '.'},
-                    {'.', '.', '.', '.', '.', '.', '.', '.'},
-                    {'.', '.', '.', '.', '.', '.', '.', '.'},
-                    {'.', '.', '.', '.', '.', '.', '.', '.'},
-                    {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
-                    {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}
-                };
-
-                memcpy(tablero, nuevoTablero, sizeof(tablero));
-
-
-                Serial.println("Reiniciando el juego...");
-                imprimirTablero();
-                return;
-            } else {
-                Serial.println("El sistema no ha sido reiniciado. Hasta luego.");
-                while (true) {}
-            }
+            pantallaVictoria("POR JAQUE MATE");
+            reiniciar = false;
+            drawChessboard();
     }
 
     //Muestra este mensaje cuando se le acaba el tiempo a alguno de los jugadores
     if (tiempoBlanco <= 0 || tiempoNegro <= 0) {
-        Serial.println("Tiempo agotado para el jugador " + String((tiempoBlanco <= 0 ? "Blanco" : "Negro")));
-        imprimirTablero();
-          juegoGanado = true;
+       // Serial.println("Tiempo agotado para el jugador " + String((tiempoBlanco <= 0 ? "Blanco" : "Negro")));
+        // imprimirTablero();
+          pantallaVictoria("POR TIEMPOOOO");
+          reiniciar = false;
+          drawChessboard();
     }
+
 
     // Actualiza el tiempo restante del jugador actual
     unsigned long tiempoActual = millis();
@@ -336,6 +309,7 @@ void loop() {
     // Verificar el toque en la pantalla
     if (seDejodepresionar()) {
         tp = ts.getPoint(); 
+
         uint16_t xpos, ypos;  // Coordenadas de la pantalla
 
         // Calcular las coordenadas del área del tablero ajustadas por la posición del tablero en la pantalla
@@ -388,8 +362,40 @@ void loop() {
                 esperandoSegundaSeleccion = false;
             }
         }
+
     }
 }
+
+void reiniciarVariables() {
+    tft.reset();
+    ID = tft.readID();
+    tft.begin(ID);
+    juegoGanado = false;
+    turnoBlanco = true;
+    reyBlancoMovido = false;
+    torreBlancaDerechaMovida = false;
+    torreBlancaIzquierdaMovida = false;
+    reyNegroMovido = false;
+    torreNegraDerechaMovida = false;
+    torreNegraIzquierdaMovida = false;
+    tiempoBlanco = 600000*2;
+    tiempoNegro = 600000*2;
+    tiempoAnterior = 0;
+
+    char nuevoTablero[8][8] = {
+        {'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
+        {'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
+        {'.', '.', '.', '.', '.', '.', '.', '.'},
+        {'.', '.', '.', '.', '.', '.', '.', '.'},
+        {'.', '.', '.', '.', '.', '.', '.', '.'},
+        {'.', '.', '.', '.', '.', '.', '.', '.'},
+        {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
+        {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}
+    };
+
+    memcpy(tablero, nuevoTablero, sizeof(tablero));
+}
+
 
 void manejarMovimientoAjedrez(char* movimiento) {
 
@@ -416,41 +422,46 @@ void manejarMovimientoAjedrez(char* movimiento) {
                 if (!verificarEnroque(tablero[filaOrigen][columnaOrigen], filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
                     if (validarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
                         moverPieza(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
-                        Serial.println("Movimiento válido.");
-                        imprimirTablero();
+                        // Serial.println("Movimiento válido.");
+                  // imprimirTablero();
                         turnoBlanco = !turnoBlanco;
                     } else {
-                        Serial.println("Movimiento inválido.");
-                        imprimirTablero();
+                        // Serial.println("Movimiento inválido.");
+                        pantallaErrorMovimiento("Movimiento invalido");
+
+                      // imprimirTablero();
                     }
                 } else {
                     Serial.println("Enroque realizado.");
-                    imprimirTablero();
+                 // imprimirTablero();
                     turnoBlanco = !turnoBlanco;
                 }
             } else { // Si estamos en jaque
                 if (quitaJaque(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
-                    if (validarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
-                        moverPieza(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
-                        Serial.println("Movimiento válido. Quita del Jaque");
-                        imprimirTablero();
-                        turnoBlanco = !turnoBlanco;
-                    } else {
-                        Serial.println("Movimiento inválido.");
-                        Serial.println("Estás en jaque, debes mover al rey a un lugar seguro o protegerlo.");
-                        imprimirTablero();
+                      if (validarMovimiento(filaOrigen, columnaOrigen, filaDestino, columnaDestino)) {
+                         moverPieza(filaOrigen, columnaOrigen, filaDestino, columnaDestino);
+                        // Serial.println("Movimiento válido. Quita del Jaque");
+                        //  imprimirTablero();
+                          turnoBlanco = !turnoBlanco;
+                      } else {
+                        //Serial.println("Movimiento inválido.");
+                       // Serial.println("Estás en jaque, debes mover al rey a un lugar seguro o protegerlo.");
+                        //    imprimirTablero();
                     }
-                }
+                    
+                } else pantallaErrorMovimiento("estas en jaque :p"); // ahi ta raro las llaves no se como van pero bno
+                 
             }
         } else {
-            Serial.println((!turnoBlanco ? "Blanco" : "Negro") + String(" no puede mover esa pieza en este turno O pusiste mal las coordenadas.")); //O OTRAS COSAS
+          pantallaErrorMovimiento("No es tu turno");
+            //Serial.println((!turnoBlanco ? "Blanco" : "Negro") + String(" no puede mover esa pieza en este turno O pusiste mal las coordenadas.")); //O OTRAS COSAS
         }
 
         drawChessboard();
         
         if (esJaqueMate()) {
             Serial.println("Jaque mate. El jugador " + String((turnoBlanco ? "Negro" : "Blanco")) + " ha ganado la partida");
-            imprimirTablero();
+          // imprimirTablero();
             juegoGanado = true;
             return;  
         }
@@ -458,7 +469,6 @@ void manejarMovimientoAjedrez(char* movimiento) {
         
     }
 }
-
 
 bool seDejodepresionar() {
     tp = ts.getPoint();
@@ -492,7 +502,7 @@ void drawChessboard() {
             }
 
             tft.fillRect(x, y, SQUARE_SIZE, SQUARE_SIZE, color);
-
+            
             char piece = tablero[row][col];
 
             if (piece != '.') {
@@ -502,7 +512,7 @@ void drawChessboard() {
     }
 
     // Dibuja los cronómetros
-    tft.setTextSize(2);
+    tft.setTextSize(4);
     tft.setTextColor(WHITE);
 
     // Cronómetro para el jugador negro (izquierda)
@@ -515,25 +525,138 @@ void drawChessboard() {
     unsigned long segundosNegro = (tiempoNegro % 60000) / 1000; 
     unsigned long minutosBlanco = tiempoBlanco / 60000;
     unsigned long segundosBlanco = (tiempoBlanco % 60000) / 1000; 
+    
+    
+    if (turnoBlanco) {
+        tft.fillRect(0, startY + CHESSBOARD_SIZE * SQUARE_SIZE, screenWidth, screenHeight, GREEN);
+    } 
+    else {
+        tft.fillRect(0, 0, screenWidth, startY, GREEN);
+    }
 
     // Imprime los minutos y segundos
     tft.print(minutosBlanco);
     tft.print(":");
-    if (segundosNegro < 10) {
-        tft.print("0"); 
-    }
     tft.print(segundosBlanco);
 
-      tft.setRotation(2); 
-      tft.setCursor(startX + CHESSBOARD_SIZE * SQUARE_SIZE + startX / 2, startY + (CHESSBOARD_SIZE * SQUARE_SIZE) / 2 + offsetY - 20);
-      tft.print(minutosNegro);
-      tft.print(":");
-      if (segundosNegro < 10) {
-          tft.print("0");
-      }
-      tft.print(segundosNegro);
-      tft.setRotation(0); 
+    tft.setRotation(2); 
+    tft.setCursor(startX + CHESSBOARD_SIZE * SQUARE_SIZE + startX / 2, startY + (CHESSBOARD_SIZE * SQUARE_SIZE) / 2 + offsetY - 20);
+    tft.print(minutosNegro);
+    tft.print(":");
+    tft.print(segundosNegro);
+    tft.setRotation(0);
 }
+
+void pantallaVictoria(const char* mensaje) {
+    
+    turnoBlanco = !turnoBlanco;
+    tft.reset();
+    ID = tft.readID();
+    tft.begin(ID);
+    tft.fillScreen(TFT_BLACK);
+
+    int anchoCaja = tft.width() - 40;
+    int altoCaja = 100;
+    int posXCaja = (tft.width() - anchoCaja) / 2;
+    int posYCaja = 20; 
+
+    tft.fillRect(posXCaja, posYCaja, anchoCaja, altoCaja, TFT_WHITE);
+    tft.setTextSize(2);
+    tft.setTextColor(TFT_BLACK);
+
+    char ganador = turnoBlanco ? 'B' : 'N'; 
+    int posXTexto, posYTexto; 
+    uint16_t fillColor = TFT_WHITE;
+    uint16_t outlineColor = TFT_BLACK;
+    posYTexto = posYTexto = posYCaja + (altoCaja - 16) / 2;
+
+    int longitudMensaje = strlen("EL REY BLANCO GANA"); // La longitud de los mensajes es la misma en ambos casos
+
+    // Calcular la posición X para centrar el mensaje en la caja
+    posXTexto = posXCaja + (anchoCaja - longitudMensaje * 6) / 2; // Multiplicar por 6 para ajustar el tamaño de la fuente
+
+    // Imprimir el mensaje centrado horizontalmente
+    tft.setCursor(posXTexto - 50, posYTexto);
+    tft.print("EL REY ");
+    if (ganador == 'B') {
+        tft.print("BLANCO GANA");
+    } else {
+        tft.print("NEGRO GANA");
+        fillColor = TFT_BLACK;
+        outlineColor = TFT_WHITE;
+    }
+    
+      int posYMensaje = posYCaja + altoCaja + 20;
+      int posXMensaje = posXCaja - 40 + (anchoCaja - strlen(mensaje) * 6) / 2;
+      int botonAncho = 127;
+      int botonAlto = 45;
+      int posYBotones = tft.height() - 60;
+      int posXBotonReiniciar = (tft.width() - botonAncho) / 2; 
+    
+
+      tft.setCursor(posXMensaje, posYMensaje);
+      tft.setTextSize(2);
+      tft.setTextColor(TFT_WHITE);
+      tft.print(mensaje);
+
+      
+      tft.setCursor(posXMensaje, posYMensaje + 150);
+      tft.setTextSize(2);
+      tft.setTextColor(TFT_WHITE);
+      tft.print("Gracias");
+        
+    tft.fillRect(posXBotonReiniciar, posYBotones, botonAncho, botonAlto, TFT_BLUE);
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextSize(2);
+    tft.setCursor(posXBotonReiniciar + 10, posYBotones + 10);
+    tft.print("REINICIAR");
+
+    Serial.println(posYMensaje);
+    Serial.println(posYBotones);
+
+    while (!reiniciar) {
+        TSPoint reiniciartsp = ts.getPoint();
+
+        pinMode(XM, OUTPUT);
+        pinMode(YP, OUTPUT);
+
+        int nuevax = map(reiniciartsp.x, TS_LEFT, TS_RT, 0, tft.width());
+        int nuevay = map(reiniciartsp.y, TS_TOP, TS_BOT, 0, tft.height());
+
+        Serial.println(reiniciartsp.z);
+
+        if (reiniciartsp.z > 0) {
+            if (nuevax > posXBotonReiniciar && nuevax < posXBotonReiniciar + botonAncho && nuevay > posYBotones && nuevay < posYBotones + botonAlto) {
+              
+              reiniciarVariables();
+              reiniciar = true;
+            }
+        }
+    }
+}
+
+
+void pantallaErrorMovimiento(const char* mensaje) {
+    tft.reset();
+    ID = tft.readID();
+    tft.begin(ID);
+    tft.fillScreen(TFT_BLACK);
+
+    tft.setTextSize(2);
+    tft.setTextColor(TFT_WHITE);
+
+    int longitudMensaje = strlen(mensaje);
+    int anchoTexto = longitudMensaje * 12;
+
+    int posXTexto = (tft.width() - anchoTexto) / 2;
+    int posYTexto = tft.height() - 250;
+
+    // Mostrar el mensaje
+    tft.setCursor(posXTexto, posYTexto);
+    tft.print(mensaje);
+    delay(1000);
+}
+
 
 void mostrarpieza(int fila, int columna, char pieza) {
     int screenWidth = tft.width();
@@ -549,56 +672,41 @@ void mostrarpieza(int fila, int columna, char pieza) {
     uint16_t fillColor = WHITE;
     uint16_t outlineColor = BLACK;
 
-    if (pieza == 'P') {
-      tft.drawBitmap(x, y, peoncontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, peon, 40, 40, fillColor);
-    } else if (pieza == 'p') {
-      fillColor = BLACK;
-      outlineColor = WHITE;
-      tft.drawBitmap(x, y, peoncontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, peon, 40, 40, fillColor);
-    } else if (pieza == 'R'){
-      tft.drawBitmap(x, y, torrecontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, torre, 40, 40, fillColor);
-    } else if (pieza == 'r') {
-      fillColor = BLACK;
-      outlineColor = WHITE;
-      tft.drawBitmap(x, y, torrecontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, torre, 40, 40, fillColor);
-    } else if (pieza == 'N') {
-      tft.drawBitmap(x, y, caballocontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, caballo, 40, 40, fillColor);
-    } else if (pieza == 'n') {
-      fillColor = BLACK;
-      outlineColor = WHITE;
-      tft.drawBitmap(x, y, caballocontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, caballo, 40, 40, fillColor);
-    } else if (pieza == 'B') {
-      tft.drawBitmap(x, y, alfilcontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, alfil, 40, 40, fillColor);
-    } else if (pieza == 'b') {
-      fillColor = BLACK;
-      outlineColor = WHITE;
-      tft.drawBitmap(x, y, alfilcontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, alfil, 40, 40, fillColor);
-    } else if (pieza == 'Q') {
-      tft.drawBitmap(x, y, damacontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, dama, 40, 40, fillColor);
-    } else if (pieza == 'q') {
-      fillColor = BLACK;
-      outlineColor = WHITE;
-      tft.drawBitmap(x, y, damacontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, dama, 40, 40, fillColor);
-    } else if (pieza == 'K') {
-      tft.drawBitmap(x, y, reycontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, rey, 40, 40, fillColor);
-    } else if (pieza == 'k') {
-      fillColor = BLACK;
-      outlineColor = WHITE;
-      tft.drawBitmap(x, y, reycontorno, 40, 40, outlineColor);
-      tft.drawBitmap(x, y, rey, 40, 40, fillColor);
+    if (islower(pieza)) {
+        fillColor = BLACK;
+        outlineColor = WHITE;
+    }
+
+    switch (toupper(pieza)) { 
+        case 'P':
+            tft.drawBitmap(x, y, peoncontorno, 40, 40, outlineColor);
+            tft.drawBitmap(x, y, peon, 40, 40, fillColor);
+            break;
+        case 'R':
+            tft.drawBitmap(x, y, torrecontorno, 40, 40, outlineColor);
+            tft.drawBitmap(x, y, torre, 40, 40, fillColor);
+            break;
+        case 'N':
+            tft.drawBitmap(x, y, caballocontorno, 40, 40, outlineColor);
+            tft.drawBitmap(x, y, caballo, 40, 40, fillColor);
+            break;
+        case 'B':
+            tft.drawBitmap(x, y, alfilcontorno, 40, 40, outlineColor);
+            tft.drawBitmap(x, y, alfil, 40, 40, fillColor);
+            break;
+        case 'Q':
+            tft.drawBitmap(x, y, damacontorno, 40, 40, outlineColor);
+            tft.drawBitmap(x, y, dama, 40, 40, fillColor);
+            break;
+        case 'K':
+            tft.drawBitmap(x, y, reycontorno, 40, 40, outlineColor);
+            tft.drawBitmap(x, y, rey, 40, 40, fillColor);
+            break;
+        default:
+            break;
     }
 }
+
 
 bool quitaJaque(int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
    
@@ -619,8 +727,7 @@ bool quitaJaque(int filaOrigen, int columnaOrigen, int filaDestino, int columnaD
     // Deshacemos el movimiento temporal
     tablero[filaOrigen][columnaOrigen] = piezaOrigen;
     tablero[filaDestino][columnaDestino] = piezaDestino;
-
-    // Retornamos verdadero si el movimiento quita el jaque, falso si no
+    
     return !sigueEnJaque;
 }
 
@@ -689,16 +796,12 @@ bool esJaqueMate() {
                             tablero[fila][columna] = piezaOrigen;
                             tablero[destinoFila][destinoColumna] = piezaDestino;
                         } else {
-                          //EN ESTA FUNCIÓN (O OTRA) PUEDE Q HAYA UN PROBLEMA AL MOVER TODAS LAS PIEZAS PUEDE QUE MUEVA EL REY Y ESTE SE CAMBIA A TRUE Y NO SE PODRÍA ENROCAR
-                          // MAÑANA LO ARREGLO PORQ  HOY TUVE SUFICIENTE SOLO TENGO ESE ERROR Y QUIZÁS UNA MALA ORGANIZACIÓN EN EL LOOP 
-                          // porque hay veces donde no dice si es movimiento válido o no.
                         }
                     }
                 }
             }
         }
     }
-    
     solopaelbugcuriosodelenroque = false; // ni idea si lo arregla pero ...
     return true;
 }
@@ -708,15 +811,12 @@ bool enJaque() {
   // Recorremos el tablero para encontrar las piezas que pueden atacar al rey
   for (int fila = 0; fila < 8; fila++) {
       for (int columna = 0; columna < 8; columna++) {
-           
           char pieza = tablero[fila][columna];
-
           if ((turnoBlanco && islower(pieza)) || (!turnoBlanco && isupper(pieza))) {
           if (pieza == '.') {
               continue; 
           }
           char rey = (turnoBlanco) ? 'K' : 'k';
-
               if (validarMovimiento(fila, columna, filadelReyGlobal, columnadelReyGlobal)) {
                   return true;
               }
@@ -757,6 +857,7 @@ void buscarCoordenadasReyDelTurno() {
     }
 }
 
+/* Creo que no lo voy a utilizar
 void imprimirTablero() {
   Serial.write(27);
   Serial.println("Tablero de Ajedrez\n");
@@ -772,6 +873,7 @@ void imprimirTablero() {
   }
   Serial.println("\n");
 }
+*/
 
 void enrocarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
 
@@ -815,13 +917,11 @@ void enrocarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
         torreNegraIzquierdaMovida = true;
     }
 
-    imprimirTablero();
+    //imprimirTablero();
 
 }
 
-
 bool verificarEnroque(char pieza, int filaOrigen, int columnaOrigen, int filaDestino, int columnaDestino) {
-
     // Verificar si el rey está en jaque
     if (enJaque()) {
         return false; 
@@ -877,11 +977,9 @@ bool verificarEnroque(char pieza, int filaOrigen, int columnaOrigen, int filaDes
 }
 
 bool casillaBajoAtaque(int fila, int columna) {
-
     for (int filaTablero = 0; filaTablero < 8; filaTablero++) {
         for (int columnaTablero = 0; columnaTablero < 8; columnaTablero++) {
             char pieza = tablero[filaTablero][columnaTablero];
-            
             if (pieza != '.') { 
                 bool esEnemigo = (turnoBlanco && islower(pieza)) || (!turnoBlanco && isupper(pieza));
                 if (esEnemigo) {
@@ -1114,71 +1212,149 @@ bool validarMovimiento(int filaOrigen, int columnaOrigen, int filaDestino, int c
 }
 
 void moverPieza(int origenFila, int origenColumna, int destinoFila, int destinoColumna) {
-
     char pieza = tablero[origenFila][origenColumna];
     char destinoPieza = tablero[destinoFila][destinoColumna];
 
-    // Si es un peón y llega al final del tablero
+    tablero[origenFila][origenColumna] = '.';
+
     if ((pieza == 'P' && destinoFila == 0) || (pieza == 'p' && destinoFila == 7)) {
-        char color = (pieza == 'P') ? 'w' : 'b'; // Determinar el color del peón
+        char color = (pieza == 'P') ? 'w' : 'b';
         coronarPeon(destinoFila, destinoColumna, color);
-        tablero[origenFila][origenColumna] = '.';
-    } else if (pieza == 'N' || pieza == 'n') {
-        // Si es un caballo, solo mover la pieza
-        tablero[destinoFila][destinoColumna] = pieza;
-        tablero[origenFila][origenColumna] = '.';
-    } else if (pieza == 'B' || pieza == 'b') {
-        // Si es un alfil
-        tablero[destinoFila][destinoColumna] = pieza;
-        tablero[origenFila][origenColumna] = '.';
-    } else if (pieza == 'R' || pieza == 'r') {
-        tablero[destinoFila][destinoColumna] = pieza;
-        tablero[origenFila][origenColumna] = '.';
-    } else if (pieza == 'Q' || pieza == 'q') {
-        // Si es una dama
-        tablero[destinoFila][destinoColumna] = pieza;
-        tablero[origenFila][origenColumna] = '.';
-    } else if (pieza == 'K' || pieza == 'k') {
-        // Si es un rey
-        tablero[destinoFila][destinoColumna] = pieza;
-        tablero[origenFila][origenColumna] = '.';
     } else {
-        tablero[destinoFila][destinoColumna] = tablero[origenFila][origenColumna];
-        tablero[origenFila][origenColumna] = '.';
+        tablero[destinoFila][destinoColumna] = pieza;
     }
 }
 
 char seleccionarPiezaCoronacion(char color) {
-  Serial.println("Selecciona la pieza en la que deseas coronar el peón:");
-  if (color == 'w') {
-    Serial.println("1. Dama (Q)");
-    Serial.println("2. Torre (R)");
-    Serial.println("3. Alfil (B)");
-    Serial.println("4. Caballo (N)");
-  } else if (color == 'b') {
-    Serial.println("1. Dama (q)");
-    Serial.println("2. Torre (r)");
-    Serial.println("3. Alfil (b)");
-    Serial.println("4. Caballo (n)");
+  tft.reset();
+  ID = tft.readID();
+  tft.begin(ID);
+  char opcionSeleccionada = '\0';
+
+  const char *textoDama = "Dama";
+  const char *textoTorre = "Torre";
+  const char *textoAlfil = "Alfil";
+  const char *textoCaballo = "Caballo";
+
+  tft.fillScreen(TFT_BLACK);
+
+  // Muestra el rectángulo y las opciones en la pantalla
+  int rectWidth = tft.width();
+  int rectHeight = 140;
+  int rectX = 0;
+  int rectY = 0;
+  tft.fillRect(rectX, rectY, rectWidth, rectHeight, TFT_WHITE);
+  tft.setTextColor(TFT_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(rectX + 10, rectY + 10);
+  tft.println("Selecciona a que quieres");
+  tft.println("    coronar el peon:");
+  tft.setCursor(rectX + 20, rectY + 50);
+  tft.println("1. " + String(textoDama));
+  tft.setCursor(rectX + 20, rectY + 70);
+  tft.println("2. " + String(textoTorre));
+  tft.setCursor(rectX + 20, rectY + 90);
+  tft.println("3. " + String(textoAlfil));
+  tft.setCursor(rectX + 20, rectY + 110);
+  tft.println("4. " + String(textoCaballo));
+
+
+   for (int i = 0; i < 4; ++i) {
+        int buttonX = rectX + 65 + (50 * i);
+        int buttonY = rectY + 300;
+        tft.fillRect(buttonX, buttonY, 40, 40, TFT_WHITE);
+        tft.setTextColor(TFT_BLACK);
+        tft.setTextSize(2);
+        tft.setCursor(buttonX + 12, buttonY + 10);
+        tft.print(i + 1);
+    }
+
+    int piezaRectWidth = tft.width() - 40;
+    int piezaRectHeight = tft.height() - rectHeight - 40;
+    int piezaRectX = 20;
+    int piezaRectY = rectHeight + 20;
+    tft.drawRect(piezaRectX, piezaRectY, piezaRectWidth, piezaRectHeight, TFT_WHITE);
+    tft.setTextSize(1);
+
+  int gapX = (piezaRectWidth - (4 * piezaRectWidth / 5)) / 5; // Espacio entre las piezas en X
+  int gapY = (piezaRectHeight - (2 * piezaRectHeight / 3)) / 3; // Espacio entre las piezas en Y
+  int startX = piezaRectX + gapX;
+
+  for (int i = 0; i < 4; ++i) {
+      uint16_t fillColor = TFT_WHITE;
+      uint16_t outlineColor = TFT_BLACK;
+
+      if (color == 'b') {
+          fillColor = TFT_BLACK;
+          outlineColor = TFT_WHITE;
+      }
+
+      int x = startX + i * (piezaRectWidth / 5 + gapX);
+      int y = piezaRectY + gapY;
+
+      switch (i) {
+          case 0:
+              tft.drawBitmap(x, y, damacontorno, 40, 40, outlineColor);
+              tft.drawBitmap(x, y, dama, 40, 40, fillColor);
+              break;
+          case 1:
+              tft.drawBitmap(x, y, torrecontorno, 40, 40, outlineColor);
+              tft.drawBitmap(x, y, torre, 40, 40, fillColor);
+              break;
+          case 2:
+              tft.drawBitmap(x, y, alfilcontorno, 40, 40, outlineColor);
+              tft.drawBitmap(x, y, alfil, 40, 40, fillColor);
+              break;
+          case 3: 
+              tft.drawBitmap(x, y, caballocontorno, 40, 40, outlineColor);
+              tft.drawBitmap(x, y, caballo, 40, 40, fillColor);
+              break;
+      }
   }
 
-  while (true) {
-    if (Serial.available() > 0) {
-      char opcion = Serial.read();
-      if (opcion == '1' || opcion == '2' || opcion == '3' || opcion == '4') {
-        switch (opcion) {
-          case '1':
-            return (color == 'w') ? 'Q' : 'q';
-          case '2':
-            return (color == 'w') ? 'R' : 'r';
-          case '3':
-            return (color == 'w') ? 'B' : 'b';
-          case '4':
-            return (color == 'w') ? 'N' : 'n';
+        // Bucle de selección
+      
+    while (opcionSeleccionada == '\0') {
+        TSPoint touch = ts.getPoint();
+
+        // Restaurar si no hay toque
+        pinMode(XM, OUTPUT);
+        pinMode(YP, OUTPUT);
+
+        int xpos = map(touch.x, TS_LEFT, TS_RT, 0, tft.width());
+        int ypos = map(touch.y, TS_TOP, TS_BOT, 0, tft.height());
+
+        if (touch.z > 0) {
+            // Verificar si se toca un botón
+            for (int i = 0; i < 4; ++i) {
+                int buttonX = rectX + 65 + (50 * i);
+                int buttonY = rectY + 300;
+                if (xpos > buttonX && xpos < buttonX + 40 && ypos > buttonY && ypos < buttonY + 40) {
+                    // Asignar la letra correspondiente según la opción seleccionada
+                    char opcion = '1' + i;
+                    if (opcion >= '1' && opcion <= '4') {
+                        switch (opcion) {
+                            case '1':
+                                opcionSeleccionada = (color == 'w') ? 'Q' : 'q';
+                                break;
+                            case '2':
+                                opcionSeleccionada = (color == 'w') ? 'R' : 'r';
+                                break;
+                            case '3':
+                                opcionSeleccionada = (color == 'w') ? 'B' : 'b';
+                                break;
+                            case '4':
+                                opcionSeleccionada = (color == 'w') ? 'N' : 'n';
+                                break;
+                        }
+                    }
+                }
+            }
         }
-      }
     }
-  }
+
+
+    return opcionSeleccionada;
 }
 
 void coronarPeon(int destinoFila, int destinoColumna, char color) {
